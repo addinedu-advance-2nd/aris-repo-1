@@ -27,8 +27,12 @@ pixmap6_path = os.path.join(image_dir, "no.png")
 # UI 경로
 main_file_path = os.path.join(base_dir, "untitled.ui")
 topping_file_path = os.path.join(base_dir, "sub.ui")
+memberinfo_file_path = os.path.join(base_dir, "memberinfo.ui")
+
 main_page_class = uic.loadUiType(main_file_path)[0]
 topping_page_class = uic.loadUiType(topping_file_path)[0]
+memberinfo_page_class = uic.loadUiType(memberinfo_file_path)[0]
+
 
 # sub.ui(토핑 선택창) 설정 
 class NewWindow(QDialog, topping_page_class):
@@ -63,40 +67,51 @@ class NewWindow(QDialog, topping_page_class):
         self.Topping_2.setCursor(Qt.PointingHandCursor)
         self.Topping_3.setCursor(Qt.PointingHandCursor)
         self.noOption.setCursor(Qt.PointingHandCursor)
-        # 토핑 초기에 noOption이미지에 선택표시
-        self.noOption.setStyleSheet("border: 5px solid red;")
-        self.selected_option = self.noOption
 
         self.selected_toppings = []  # 선택된 토핑 저장
+        self.Topping_1.mousePressEvent = lambda event: self.toggle_option(self.Topping_1, "로투스")
+        self.Topping_2.mousePressEvent = lambda event: self.toggle_option(self.Topping_2, "레인보우")
+        self.Topping_3.mousePressEvent = lambda event: self.toggle_option(self.Topping_3, "오레오")
+        self.noOption.mousePressEvent = lambda event: self.select_no_option()
 
-        # 여기서 topping_name을 추가적으로 전달
-        self.Topping_1.mousePressEvent = lambda event: self.select_option(self.Topping_1, "로투스")
-        self.Topping_2.mousePressEvent = lambda event: self.select_option(self.Topping_2, "레인보우")
-        self.Topping_3.mousePressEvent = lambda event: self.select_option(self.Topping_3, "오레오")
-        self.noOption.mousePressEvent = lambda event: self.select_option(self.noOption, "없음")
-
-        # 토핑창에서의 취소,담기 버튼
+        # 토핑창에서의 취소, 담기 버튼
         self.cancel_btn.clicked.connect(self.close)
         self.order_btn.clicked.connect(self.add_to_order)
 
-    def select_option(self, selected_label, topping_name):
-        if self.selected_option:
-            self.selected_option.setStyleSheet("border: none;") 
-        selected_label.setStyleSheet("border: 5px solid red;")
-        self.selected_option = selected_label
+        # "없음"이 클릭되면 모든 토핑의 선택을 해제하고 "없음"만 빨간 테두리
+    def select_no_option(self):
+        self.clear_all_borders()
+        self.noOption.setStyleSheet("border: 5px solid red;")
+        self.selected_option = self.noOption
+        self.selected_toppings = ["없음"]
+        # "없음" 선택이 있을 경우 제거
+    def toggle_option(self, selected_label, topping_name):
+        if "없음" in self.selected_toppings:
+            self.selected_toppings.remove("없음")
+            self.noOption.setStyleSheet("border: none;")
 
-        # 선택된 토핑을 리스트에 추가, 없을 경우 없음만 추가하고 이전 기록 삭제(selected toppings 리스트초기화)
-        if topping_name == "없음":
-            self.selected_toppings = []
-        if topping_name not in self.selected_toppings:
+        # 선택된 토핑이 이미 선택된 상태라면 테두리를 해제하고 리스트에서 제거
+        if topping_name in self.selected_toppings:
+            selected_label.setStyleSheet("border: none;")
+            self.selected_toppings.remove(topping_name)
+        else:
+            # 선택된 토핑에 빨간 테두리 표시하고 리스트에 추가
+            selected_label.setStyleSheet("border: 5px solid red;")
             self.selected_toppings.append(topping_name)
+
+    # 모든 토핑의 스타일 초기화
+    def clear_all_borders(self):
+        for topping in [self.Topping_1, self.Topping_2, self.Topping_3]:
+            topping.setStyleSheet("border: none;")
 
     def add_to_order(self):
         order_string = self.text_label.text()
+        # 없음을 빼는 코드
+        selected_toppings = [topping for topping in self.selected_toppings if topping != "없음"]
         
         # 선택된 토핑을 문자열로 변환하여 추가
-        if self.selected_toppings:
-            order_string += " + " + " + ".join(self.selected_toppings)
+        if selected_toppings:
+            order_string += " + " + " + ".join(selected_toppings)
 
         if self.parent():
             self.parent().update_order_list(order_string)
@@ -106,21 +121,47 @@ class NewWindow(QDialog, topping_page_class):
     def set_image(self, pixmap):
         self.image_label.setPixmap(pixmap)  
         self.image_label.setScaledContents(True)
+# 회원정보 
+class MemberInfoDialog(QDialog,memberinfo_page_class):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setupUi(self)
+        self.mb_cancel_btn.clicked.connect(self.close)
+        self.mb_regist_btn.clicked.connect(self.register_member)
+    # 회원등록 textedit에 작성한 이름 , 번호를 각각의 name , phone 에 저장
+    def register_member(self):
+        name = self.name_textEdit.toPlainText()
+        phone = self.phone_textEdit.toPlainText()
+        # 메인 윈도우에 전송
+        if name and phone:
+            if self.parent():
+               self.parent().update_member_info(name,phone)
+            self.close()
+        else:
+            # 입력이 비어있는 경우 처리
+            QMessageBox.warning(self, "입력 오류", "이름과 전화번호를 모두 입력해주세요.")
 
 class OrderListDialog(QDialog): # 임시 리스트 출력
-    def __init__(self, order_list, parent=None):
+    def __init__(self, order_list, name, phone, parent=None):
         super().__init__(parent)
         self.setWindowTitle("주문 내역")
         self.setGeometry(100, 100, 300, 400)
 
         layout = QVBoxLayout()
-        self.order_list_widget = QListWidget()
+       # 이름 , 번호 써질 라벨 임시 생성
+        self.name_label = QLabel(f"{name}")
+        self.phone_label = QLabel(f"{phone}")
+
         
         # 주문 목록 추가
+        self.order_list_widget = QListWidget()
         self.order_list_widget.addItems(order_list)
-        
+        layout.addWidget(self.name_label)
+        layout.addWidget(self.phone_label)
         layout.addWidget(self.order_list_widget)
+
         self.setLayout(layout)
+
 # 메인 윈도우 클래스
 class WindowClass(QMainWindow, main_page_class):
     def __init__(self):
@@ -150,10 +191,23 @@ class WindowClass(QMainWindow, main_page_class):
         self.menu_price_label_1.setText("2000 원")
         self.menu_price_label_2.setText("2000 원")
         self.menu_price_label_3.setText("2000 원")
-
+        # 리스트 받아옴
         self.order_model = QStringListModel()
-        self.order_list_widget.setModel(self.order_model) # 리스트 받아옴
+        self.order_list_widget.setModel(self.order_model) 
         self.receipt.clicked.connect(self.show_receipt) # 임시 영수증 출력
+        self.member_btn.clicked.connect(self.open_member_window)
+
+        self.user_name = ""
+        self.user_phone = ""
+
+    def update_member_info(self, name, phone):
+        # 받은 이름과 전화번호로 레이블을 업데이트
+        self.user_name = name
+        self.user_phone = phone
+
+    def open_member_window(self):
+        member_dialog = MemberInfoDialog(self)
+        member_dialog.exec_()    
 
     def open_new_window(self, image_path, menu_name):
         self.new_window = NewWindow(menu_name, self)
@@ -167,7 +221,7 @@ class WindowClass(QMainWindow, main_page_class):
 
     def show_receipt(self): #임시 영수증 출력
         current_orders = self.order_model.stringList()
-        receipt_dialog = OrderListDialog(current_orders, self)
+        receipt_dialog = OrderListDialog(current_orders, self.user_name, self.user_phone, self)
         receipt_dialog.exec_()
 
 

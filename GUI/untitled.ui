@@ -392,6 +392,9 @@ color:red;</string>
     </property>
    </widget>
    <widget class="QListView" name="order_list_widget">
+    <property name="enabled">
+     <bool>true</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>30</x>
@@ -404,18 +407,57 @@ color:red;</string>
      <string notr="true"> background-color:rgb(255, 255, 255);
 font: 20px</string>
     </property>
+    <property name="editTriggers">
+     <set>QAbstractItemView::NoEditTriggers</set>
+    </property>
    </widget>
    <widget class="QPushButton" name="receipt">
     <property name="geometry">
      <rect>
-      <x>600</x>
-      <y>700</y>
-      <width>101</width>
-      <height>31</height>
+      <x>550</x>
+      <y>690</y>
+      <width>141</width>
+      <height>61</height>
      </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">color:white;
+background-color: rgb(229, 79, 64);
+border-radius: 25px;
+font: 20px
+</string>
     </property>
     <property name="text">
      <string>결제</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="member_btn">
+    <property name="geometry">
+     <rect>
+      <x>580</x>
+      <y>470</y>
+      <width>141</width>
+      <height>61</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>Pretendard ExtraBold</family>
+      <pointsize>-1</pointsize>
+      <weight>50</weight>
+      <italic>false</italic>
+      <bold>false</bold>
+     </font>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">background-color: rgb(229, 79, 64);
+border-radius: 25px;
+color:white;
+font: 20px
+</string>
+    </property>
+    <property name="text">
+     <string>회원 등록</string>
     </property>
    </widget>
    <zorder>label_3</zorder>
@@ -434,6 +476,7 @@ font: 20px</string>
    <zorder>menu_name_label_3</zorder>
    <zorder>order_list_widget</zorder>
    <zorder>receipt</zorder>
+   <zorder>member_btn</zorder>
   </widget>
  </widget>
  <resources/>
