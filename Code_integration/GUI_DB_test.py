@@ -5,12 +5,18 @@
 #sudo apt install qttools5-dev-tools
 
 
-import sys
-import os
+import sys, os
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5 import uic
 from PyQt5.QtCore import Qt, QStringListModel
+#----------- DB--------------------
+import datetime
+sys.path.append(os.path.dirname(os.path.relpath(os.path.dirname("/home/hjpark/dev_hjp/aris-repo-1/DB/"))))
+from DB import sqlite3_db
+#from sqlite3_db import init_database, add_new_member,update_order_history,update_member_prefer_rewards, greeting_member
+#----------------------------------
+
 # 파일경로
 base_dir = os.path.dirname(os.path.abspath(__file__))
 image_dir = os.path.join(base_dir, "image")
@@ -25,8 +31,8 @@ pixmap5_path = os.path.join(image_dir, "topping3.png")
 pixmap6_path = os.path.join(image_dir, "no.png")
 
 # UI 경로
-main_file_path = os.path.join(base_dir, "untitled.ui")
-topping_file_path = os.path.join(base_dir, "sub.ui")
+main_file_path = os.path.join(base_dir, "../GUI/untitled.ui")
+topping_file_path = os.path.join(base_dir, "../GUI/sub.ui")
 main_page_class = uic.loadUiType(main_file_path)[0]
 topping_page_class = uic.loadUiType(topping_file_path)[0]
 
@@ -155,6 +161,8 @@ class WindowClass(QMainWindow, main_page_class):
         self.order_list_widget.setModel(self.order_model) # 리스트 받아옴
         self.receipt.clicked.connect(self.show_receipt) # 임시 영수증 출력
 
+        sqlite3_db.init_database() # DB 시작 및 연결확인
+
     def open_new_window(self, image_path, menu_name):
         self.new_window = NewWindow(menu_name, self)
         self.new_window.set_image(QPixmap(image_path))
@@ -164,12 +172,44 @@ class WindowClass(QMainWindow, main_page_class):
         current_orders = self.order_model.stringList()
         current_orders.append(order_string)
         self.order_model.setStringList(current_orders)
-
+            
     def show_receipt(self): #임시 영수증 출력
         current_orders = self.order_model.stringList()
         receipt_dialog = OrderListDialog(current_orders, self)
+        print(update_DB(current_orders)) 
         receipt_dialog.exec_()
 
+def update_DB(current_orders):
+        # default
+        db_massage = "DB connection failed"
+
+        # DB로 전송
+        orders = current_orders[0].split(' + ')
+        flavor= orders[0]
+
+        kor_flavor_list = ["딸기맛", "바나나맛", "초코맛"] ######################## global, later
+        eng_flavor_list = ["Strawberry", "Banana", "Chocolate"] ######################## global, later
+        for i in range(len(kor_flavor_list)):
+            if flavor == kor_flavor_list[i]:
+                flavor = eng_flavor_list[i]
+            
+        # topping 정보
+        kor_topping_list = ["로투스", "레인보우", "오레오"] ######################## global, later
+        topping_signal = ""
+        if len(orders)>1:
+            for i in range(len(kor_topping_list)):
+                if kor_topping_list[i] in orders[1:]:
+                    topping_signal += "1"
+                else:
+                    topping_signal += "0"
+ 
+        datetime_now = datetime.datetime.now()
+        db_sign = sqlite3_db.update_order_history(datetime_now=datetime_now, flavor=flavor , toppings=topping_signal, membership_n= "Null")
+
+        if db_sign:
+            db_massage = "success"
+
+        return db_massage
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

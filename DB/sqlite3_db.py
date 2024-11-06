@@ -15,7 +15,7 @@ def init_database ():
     db_list = ["Orders", "Membership", "Reward_preference"]
 
     #create table - Order
-    con_Order = sqlite3.connect('./DB_list/Orders.db')
+    con_Order = sqlite3.connect('/home/hjpark/dev_hjp/aris-repo-1/DB/DB_list/Orders.db')
     cur_Order = con_Order.cursor()
     try:
         cur_Order.execute('''CREATE TABLE Orders(dateTime datetime, flavor text, 
@@ -24,7 +24,7 @@ def init_database ():
         print("Table [Orders] already exist")
 
     #create table - Membership
-    con_Membership = sqlite3.connect('./DB_list/Membership.db')
+    con_Membership = sqlite3.connect('/home/hjpark/dev_hjp/aris-repo-1/DB/DB_list/Membership.db')
     cur_Membership = con_Membership.cursor()
     try:
         cur_Membership.execute('''CREATE TABLE Membership(dateTime datetime, name text, 
@@ -34,7 +34,7 @@ def init_database ():
          print("Table [Membership] already exist")
 
     #create table - Reward_preference
-    con_Reward_preference = sqlite3.connect('./DB_list/Reward_preference.db')
+    con_Reward_preference = sqlite3.connect('/home/hjpark/dev_hjp/aris-repo-1/DB/DB_list/Reward_preference.db')
     cur_Reward_preference = con_Reward_preference.cursor()
     try:
         cur_Reward_preference.execute('''CREATE TABLE Reward_preference(
@@ -50,28 +50,33 @@ def init_database ():
     
 # 주문 이력 추가
 def update_order_history(datetime_now, flavor, toppings, membership_n):
-    
-    con_Order = sqlite3.connect('./DB_list/Orders.db')
-    cur_Order = con_Order.cursor()
+    db_sign = ""
+    try:
+        con_Order = sqlite3.connect('/home/hjpark/dev_hjp/aris-repo-1/DB/DB_list/Orders.db')
+        cur_Order = con_Order.cursor()
 
-    DT = datetime_now
-    Flavor = flavor
-    Topping = toppings
-    Member_n= membership_n
-    
-    sql=(DT,Flavor,Topping,Member_n)
-    print(sql)
+        DT = datetime_now
+        Flavor = flavor
+        Topping = toppings
+        Member_n= membership_n
+        
+        sql=(DT,Flavor,Topping,Member_n)
+        print(sql)
 
-    # Insert a row of data
-    cur_Order.execute("""INSERT INTO Orders VALUES (?,?,?,?)""",sql)
+        # Insert a row of data
+        cur_Order.execute("""INSERT INTO Orders VALUES (?,?,?,?)""",sql)
 
-    # save chainge
-    con_Order.commit()
-    
-    # end
-    con_Order.close()
+        # save chainge
+        con_Order.commit()
+        
+        # end
+        con_Order.close()
+        db_sign = True
+    except:
+        db_sign = False
 
-    return
+
+    return db_sign
 
 # 신규회원 - 회원정보&회원적립 및 선호 DB 내역 입력
 def add_new_member(datetime_now,name, phone, flavor):
@@ -108,7 +113,7 @@ def add_new_member(datetime_now,name, phone, flavor):
     """
 
     # Membership DB - 회원 정보 기록
-    con_Membership = sqlite3.connect('./DB_list/Membership.db')
+    con_Membership = sqlite3.connect('/home/hjpark/dev_hjp/aris-repo-1/DB/DB_list/Membership.db')
     cur_Membership = con_Membership.cursor()
 
     sql = (datetime_now,member_name,member_phone,members_number,new_member_photo_path)
@@ -123,7 +128,7 @@ def add_new_member(datetime_now,name, phone, flavor):
 
     # Membership preference & reward DB - 멤버쉽 쿠폰 생성
     #Reward_preference
-    con_Reward_preference = sqlite3.connect('./DB_list/Reward_preference.db')
+    con_Reward_preference = sqlite3.connect('/home/hjpark/dev_hjp/aris-repo-1/DB/DB_list/Reward_preference.db')
     cur_Reward_preference = con_Reward_preference.cursor()
 
     # default value
@@ -208,7 +213,7 @@ def update_member_prefer_rewards(date, flavor, membership_n):
     last_menu_cont=0
 
     #Reward_preference
-    con_Reward_preference = sqlite3.connect('./DB_list/Reward_preference.db')
+    con_Reward_preference = sqlite3.connect('/home/hjpark/dev_hjp/aris-repo-1/DB/DB_list/Reward_preference.db')
     cur_Reward_preference = con_Reward_preference.cursor()
     # 주문기록 추가
     cur_Reward_preference.execute("""SELECT * FROM Reward_preference WHERE membership_num=(?)""",(membership_n,))
@@ -260,7 +265,7 @@ def greeting_member(membership_n):
     last_menu_cont=0
     
     #Reward_preference
-    con_Reward_preference = sqlite3.connect('./DB_list/Reward_preference.db')
+    con_Reward_preference = sqlite3.connect('/home/hjpark/dev_hjp/aris-repo-1/DB/DB_list/Reward_preference.db')
     cur_Reward_preference = con_Reward_preference.cursor()
     
     cur_Reward_preference.execute("""SELECT * FROM Reward_preference WHERE membership_num=(?)""",(membership_n,))
@@ -295,3 +300,5 @@ def greeting_member(membership_n):
 
     return member_info
 
+
+# %%

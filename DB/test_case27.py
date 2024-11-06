@@ -174,7 +174,7 @@ print(members_number)
 # %%
 import sqlite3
 #create table - Order
-con_Order = sqlite3.connect('./DB_list/Orders.db')
+con_Order = sqlite3.connect('/home/hjpark/dev_hjp/aris-repo-1/DB/DB_list/Orders.db')
 cur_Order = con_Order.cursor()
 for row in cur_Order.execute('''SELECT * FROM Orders'''):
         print(row)
