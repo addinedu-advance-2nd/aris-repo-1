@@ -8,14 +8,18 @@ import shutil
 kiosk_photo_path='../kioskphoto/' # 회원 얼굴사진 찍은 직후 저장위치, 임시, 기능x
 member_photo_path='./face_photo/' # 회원 등록 완료 후 사진 보관 위치, 임시, 기능x
 reward_counts=7 # 임시, 기능x
-Flavor_list=["Strawberry", "Chocolate", "Vanilla"] # 선택가능한 맛 list, 없는 맛 선택시 오류
+Flavor_list=["Strawberry", "Banana","Chocolate"] # 선택가능한 맛 list, 없는 맛 선택시 오류
+
+Order_db_abspath = "/home/hjpark/dev_hjp/aris-repo-1/DB/DB_list/Orders.db"
+Membership_db_abspath = "/home/hjpark/dev_hjp/aris-repo-1/DB/DB_list/Membership.db"
+Reward_preference_db_abs_path = "/home/hjpark/dev_hjp/aris-repo-1/DB/DB_list/Reward_preference.db"
 
 # 테이블 생성 -이미 존재할 경우 종료
 def init_database (): 
     db_list = ["Orders", "Membership", "Reward_preference"]
 
     #create table - Order
-    con_Order = sqlite3.connect('/home/hjpark/dev_hjp/aris-repo-1/DB/DB_list/Orders.db')
+    con_Order = sqlite3.connect(Order_db_abspath)
     cur_Order = con_Order.cursor()
     try:
         cur_Order.execute('''CREATE TABLE Orders(dateTime datetime, flavor text, 
@@ -24,7 +28,7 @@ def init_database ():
         print("Table [Orders] already exist")
 
     #create table - Membership
-    con_Membership = sqlite3.connect('/home/hjpark/dev_hjp/aris-repo-1/DB/DB_list/Membership.db')
+    con_Membership = sqlite3.connect(Membership_db_abspath)
     cur_Membership = con_Membership.cursor()
     try:
         cur_Membership.execute('''CREATE TABLE Membership(dateTime datetime, name text, 
@@ -34,7 +38,7 @@ def init_database ():
          print("Table [Membership] already exist")
 
     #create table - Reward_preference
-    con_Reward_preference = sqlite3.connect('/home/hjpark/dev_hjp/aris-repo-1/DB/DB_list/Reward_preference.db')
+    con_Reward_preference = sqlite3.connect(Reward_preference_db_abs_path)
     cur_Reward_preference = con_Reward_preference.cursor()
     try:
         cur_Reward_preference.execute('''CREATE TABLE Reward_preference(
@@ -52,7 +56,7 @@ def init_database ():
 def update_order_history(datetime_now, flavor, toppings, membership_n):
     db_sign = ""
     try:
-        con_Order = sqlite3.connect('/home/hjpark/dev_hjp/aris-repo-1/DB/DB_list/Orders.db')
+        con_Order = sqlite3.connect(Order_db_abspath)
         cur_Order = con_Order.cursor()
 
         DT = datetime_now
@@ -113,7 +117,7 @@ def add_new_member(datetime_now,name, phone, flavor):
     """
 
     # Membership DB - 회원 정보 기록
-    con_Membership = sqlite3.connect('/home/hjpark/dev_hjp/aris-repo-1/DB/DB_list/Membership.db')
+    con_Membership = sqlite3.connect(Membership_db_abspath)
     cur_Membership = con_Membership.cursor()
 
     sql = (datetime_now,member_name,member_phone,members_number,new_member_photo_path)
@@ -128,7 +132,7 @@ def add_new_member(datetime_now,name, phone, flavor):
 
     # Membership preference & reward DB - 멤버쉽 쿠폰 생성
     #Reward_preference
-    con_Reward_preference = sqlite3.connect('/home/hjpark/dev_hjp/aris-repo-1/DB/DB_list/Reward_preference.db')
+    con_Reward_preference = sqlite3.connect(Reward_preference_db_abs_path)
     cur_Reward_preference = con_Reward_preference.cursor()
 
     # default value
@@ -213,7 +217,7 @@ def update_member_prefer_rewards(date, flavor, membership_n):
     last_menu_cont=0
 
     #Reward_preference
-    con_Reward_preference = sqlite3.connect('/home/hjpark/dev_hjp/aris-repo-1/DB/DB_list/Reward_preference.db')
+    con_Reward_preference = sqlite3.connect(Reward_preference_db_abs_path)
     cur_Reward_preference = con_Reward_preference.cursor()
     # 주문기록 추가
     cur_Reward_preference.execute("""SELECT * FROM Reward_preference WHERE membership_num=(?)""",(membership_n,))
@@ -265,7 +269,7 @@ def greeting_member(membership_n):
     last_menu_cont=0
     
     #Reward_preference
-    con_Reward_preference = sqlite3.connect('/home/hjpark/dev_hjp/aris-repo-1/DB/DB_list/Reward_preference.db')
+    con_Reward_preference = sqlite3.connect(Reward_preference_db_abs_path)
     cur_Reward_preference = con_Reward_preference.cursor()
     
     cur_Reward_preference.execute("""SELECT * FROM Reward_preference WHERE membership_num=(?)""",(membership_n,))
