@@ -24,6 +24,8 @@ import datetime
 import random
 import traceback
 import threading
+import socket
+import json
 from xarm import version
 from xarm.wrapper import XArmAPI
 
@@ -40,6 +42,8 @@ class RobotMain(object):
         self._vars = {}
         self._funcs = {}
         self._robot_init()
+        self.state = 'stopped'
+        self.order_msg_queue = queue.Queue()
 
         self.position_home = [179.2, -42.1, 7.4, 186.7, 41.5, -1.6]  # angle
         self.position_jig_A_grab = [-260.9, -130.6, 210.1, -39.2, 87.2, -150.9]  # linear
@@ -138,6 +142,150 @@ class RobotMain(object):
         else:
             return False
 
+
+    def socket_connect(self):
+        # socket 연결 with CV server (연결 될때까지 지속적 시도.)
+        self.HOST = '192.168.0.17'
+        self.PORT = 65432
+        self.BUFSIZE = 1024
+        self.ADDR = (self.HOST, self.PORT)
+
+        # 서버 소켓 설정
+        self.serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.serverSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.serverSocket.settimeout(10)
+
+        # 연결 시도
+        while True:
+            try:
+                self.serverSocket.bind(self.ADDR)
+                print("bind")
+
+                # 연결 대기
+                self.serverSocket.listen(1)
+                print(f'[LISTENING] Server is listening on robot_server')
+                time.sleep(1)
+                while True:
+                    try:
+                        self.clientSocket, addr_info = self.serverSocket.accept()
+                        print("socket accepted")
+                        break
+                    except socket.timeout:
+                        print("socket timeout")
+                        print("연결을 재시도 합니다")
+                break
+            except:
+                pass
+
+        print("--client info--")
+        print(self.clientSocket)
+
+        self.connected = True
+        self.state = 'ready'
+
+        # 지속적으로 메시지 수령.
+        while self.connected:
+            print("메시지 대기 중...")
+            time.sleep(0.5)
+            
+            try:
+                # 대기 시간 설정
+                self.clientSocket.settimeout(10.0)
+                # 메시지 수령
+                self.recv_msg = self.clientSocket.recv(self.BUFSIZE).decode('utf-8')
+                print('received msg : ' + self.recv_msg)
+                
+                
+                # 메시지가 비어 있는 경우. 연결이 끊겼으므로 재연결을 위해 예외 처리
+                if self.recv_msg == '':
+                        print('received empty msg')
+                        raise Exception('empty msg')
+
+                self.recv_msg = self.recv_msg.split('/')
+
+                
+
+                # 어떤 메시지를 받을 수 있는지 생각해봐야할 듯
+                if self.recv_msg[0] in ['test', 'test_stop', 'icecream']:
+                    # 받은 메시지 타입 확인
+                    print(f'message type : {self.recv_msg[0]}')
+                    
+                    # 로봇이 ready 상태라면 받은 메시지에 맞춰 상태 변경
+                    if self.state == 'ready':
+                        self.state = self.recv_msg[0]
+                    
+                    # 아이스크림 추출 메시지를 받았다면 관련 정보들을 order_msg로 저장
+                    if self.recv_msg[0] == 'icecream':
+                        # 문자열 -> json 
+                        temp = json.loads(self.recv_msg[1])
+                        # 주문 queue에 넣음
+                        self.order_msg_queue.put(temp)
+
+                    
+
+                # 추후 비상 정지 / 중단 / 작동 재개를 위한 코드.
+                elif self.recv_msg[0] == 'robot_stop':
+                        code = self._arm.set_state(4)
+                        if not self._check_code(code, 'set_state'):
+                            return
+                        sys.exit()
+                        self.is_alive = False
+                        print('Robot stop & program exit')
+                elif self.recv_msg[0] == 'robot_pause':
+                        code = self._arm.set_state(3)
+                        if not self._check_code(code, 'set_state'):
+                            return
+                        print('Robot pause')
+                elif self.recv_msg[0] == 'robot_resume':
+                        code = self._arm.set_state(0)
+                        if not self._check_code(code, 'set_state'):
+                            return
+                        print('Robot resume')
+                else:
+                    self.clientSocket.send('ERROR : wrong msg received'.encode('utf-8'))
+                    print('got unexpected msg!')
+                
+            except Exception as e:
+                self.pprint('MainException: {}'.format(e))
+                self.connected = False
+                print('connection lost')
+                # 재연결 시도
+                while True:
+                    time.sleep(2)
+                    try:
+                        # server socket 정리
+                        self.serverSocket.shutdown(socket.SHUT_RDWR)
+                        self.serverSocket.close()
+                        
+                        # 소켓 설정
+                        self.serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        self.serverSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                        self.serverSocket.settimeout(10)
+
+                        self.serverSocket.bind(self.ADDR)
+                        print("bind")
+
+                        while True:
+                            self.serverSocket.listen(1)
+                            print(f'reconnecting...')
+                            try:
+                                self.clientSocket, addr_info = self.serverSocket.accept()
+                                self.connected = True
+                                break
+
+                            except socket.timeout:
+                                print('socket.timeout')
+
+                            except:
+                                pass
+                        break
+                    except Exception as e:
+                        self.pprint('MainException: {}'.format(e))
+                        print('except')
+                        # pass
+
+        
+
     def motion_home(self):
         # cup dispenser 잠금
         code = self._arm.set_cgpio_analog(0, 5)
@@ -193,8 +341,8 @@ class RobotMain(object):
         except:
             print('socket error')
 
-        # # capsule station으로 이동 (2번째 스테이션 뒤)
-        # motion_point_station 에서 진행
+        # # capsule jig으로 이동 (2번째 스테이션 뒤)
+        # motion_point_jig 에서 진행
         # code = self._arm.set_servo_angle(angle=[166.1, 30.2, 25.3, 75.3, 93.9, -5.4], speed=self._angle_speed,
         #                                     mvacc=self._angle_acc, wait=True, radius=30.0)
         # if not self._check_code(code, 'set_servo_angle'):
@@ -207,55 +355,55 @@ class RobotMain(object):
         time.sleep(1)
         
 
-        # 어느 station이냐에 따라 각 station으로 이동
-        if self.station == 'A':
-            # # A station 방향 바라보기
-            # motion_point_station 에서 진행
+        # 어느 jig이냐에 따라 각 jig으로 이동
+        if self.jig == 'A':
+            # # A jig 방향 바라보기
+            # motion_point_jig 에서 진행
             # code = self._arm.set_servo_angle(angle=[179.5, 33.5, 32.7, 113.0, 93.1, -2.3], speed=self._angle_speed,
             #                                  mvacc=self._angle_acc, wait=True, radius=20.0)
             # if not self._check_code(code, 'set_servo_angle'):
             #     return
 
-            # A station capsule grab 준비
+            # A jig capsule grab 준비
             code = self._arm.set_servo_angle(angle=[179.5, 33.5, 32.7, 113.0, 93.1, -2.3], speed=self._angle_speed,
                                             mvacc=self._angle_acc, wait=True, radius=20.0)
             if not self._check_code(code, 'set_servo_angle'):
                 return
             
-            # A station capsule grab
+            # A jig capsule grab
             code = self._arm.set_position(*self.position_jig_A_grab, speed=self._tcp_speed,
                                           mvacc=self._tcp_acc, radius=0.0, wait=True)
             if not self._check_code(code, 'set_position'):
                 return
 
-        elif self.station == 'B':
-            # B station capsule grab 준비
+        elif self.jig == 'B':
+            # B jig capsule grab 준비
             code = self._arm.set_servo_angle(angle=[166.1, 30.2, 25.3, 75.3, 93.9, -5.4], speed=self._angle_speed,
                                                 mvacc=self._angle_acc, wait=True, radius=30.0)
             if not self._check_code(code, 'set_servo_angle'):
                 return
             
-            # B station capsule grab
+            # B jig capsule grab
             code = self._arm.set_position(*self.position_jig_B_grab, speed=self._tcp_speed,
                                           mvacc=self._tcp_acc, radius=0.0, wait=True)
             if not self._check_code(code, 'set_position'):
                 return
 
-        elif self.station == 'C':
-            # # C station 방향 바라보기
-            # motion_point_station 에서 진행
+        elif self.jig == 'C':
+            # # C jig 방향 바라보기
+            # motion_point_jig 에서 진행
             # code = self._arm.set_servo_angle(angle=[182.6, 27.8, 27.7, 55.7, 90.4, -6.4], speed=self._angle_speed,
             #                                  mvacc=self._angle_acc, wait=True, radius=20.0)
             # if not self._check_code(code, 'set_servo_angle'):
             #     return
 
-            # C station capsule grab 준비
+            # C jig capsule grab 준비
             code = self._arm.set_servo_angle(angle=[182.6, 27.8, 27.7, 55.7, 90.4, -6.4], speed=self._angle_speed,
                                             mvacc=self._angle_acc, wait=True, radius=20.0)
             if not self._check_code(code, 'set_servo_angle'):
                 return
             
-            # C station capsule grab
+            # C jig capsule grab
             code = self._arm.set_position(*self.position_jig_C_grab, speed=self._tcp_speed,
                                           mvacc=self._tcp_acc, radius=0.0, wait=True)
             if not self._check_code(code, 'set_position'):
@@ -272,7 +420,7 @@ class RobotMain(object):
         #     return
         
         # capsule 잡은 후 들어올리기
-        if self.station == 'C':
+        if self.jig == 'C':
             code = self._arm.set_position(z=150, radius=0, speed=self._tcp_speed, mvacc=self._tcp_acc, relative=True,
                                           wait=False)
             if not self._check_code(code, 'set_position'):
@@ -958,8 +1106,8 @@ class RobotMain(object):
         self._tcp_speed = 100
         self._tcp_acc = 1000
 
-        # station에 따라
-        if self.station == 'A':
+        # jig에 따라
+        if self.jig == 'A':
             code = self._arm.set_position(*self.position_jig_A_serve, speed=self._tcp_speed,
                                           mvacc=self._tcp_acc, radius=0.0, wait=True)
             if not self._check_code(code, 'set_position'):
@@ -990,7 +1138,7 @@ class RobotMain(object):
             if not self._check_code(code, 'set_position'):
                 return
 
-        elif self.station == 'B':
+        elif self.jig == 'B':
             code = self._arm.set_position(*self.position_jig_B_serve, speed=self._tcp_speed,
                                           mvacc=self._tcp_acc, radius=0.0, wait=False)
             if not self._check_code(code, 'set_position'):
@@ -1019,7 +1167,7 @@ class RobotMain(object):
                                           mvacc=self._tcp_acc, radius=0.0, wait=True)
             if not self._check_code(code, 'set_position'):
                 return
-        elif self.station == 'C':
+        elif self.jig == 'C':
             code = self._arm.set_servo_angle(angle=[177.6, 0.2, 13.5, 70.0, 94.9, 13.8], speed=self._angle_speed,
                                              mvacc=self._angle_acc, wait=True, radius=0.0)
             if not self._check_code(code, 'set_servo_angle'):
@@ -1179,8 +1327,8 @@ class RobotMain(object):
 
 
     # custom code.
-    # 어느 station에 놓을 것인지 안내하는 모션
-    def motion_point_station(self):
+    # 어느 jig에 놓을 것인지 안내하는 모션
+    def motion_point_jig(self):
         # Motion speed
         self._angle_speed = 100
         self._angle_acc = 100
@@ -1191,19 +1339,19 @@ class RobotMain(object):
         point_num = 5
 
         try:
-            self.clientSocket.send('motion_point_station_start'.encode('utf-8'))
+            self.clientSocket.send('motion_point_jig_start'.encode('utf-8'))
         except:
             print('socket error')
 
-        # capsule station으로 이동 (2번째 스테이션 뒤)
+        # capsule jig으로 이동 (2번째 스테이션 뒤)
         code = self._arm.set_servo_angle(angle=[166.1, 30.2, 25.3, 75.3, 93.9, 90.0], speed=self._angle_speed,
                                             mvacc=self._angle_acc, wait=True, radius=30.0)
         if not self._check_code(code, 'set_servo_angle'):
             return
 
-        # 어느 station이냐에 따라 각 station으로 이동
-        if self.station == 'A':
-            # A station 방향 포인트
+        # 어느 jig이냐에 따라 각 jig으로 이동
+        if self.jig == 'A':
+            # A jig 방향 포인트
             for i in range(point_num):
                 code = self._arm.set_servo_angle(angle=[179.5, 33.5, 32.7, 113.0, 98.1, 90.0], speed=self._angle_speed,
                                             mvacc=self._angle_acc, wait=False, radius=20.0)
@@ -1214,8 +1362,8 @@ class RobotMain(object):
                 if not self._check_code(code, 'set_servo_angle'):
                     return
 
-        elif self.station == 'B':
-            # B station 방향 포인트
+        elif self.jig == 'B':
+            # B jig 방향 포인트
             for i in range(point_num):
                 code = self._arm.set_servo_angle(angle=[166.1, 30.2, 25.3, 75.3, 98.9, 90.0], speed=self._angle_speed,
                                                 mvacc=self._angle_acc, wait=False, radius=30.0)
@@ -1226,8 +1374,8 @@ class RobotMain(object):
                 if not self._check_code(code, 'set_servo_angle'):
                     return
 
-        elif self.station == 'C':
-            # C station 방향 포인트
+        elif self.jig == 'C':
+            # C jig 방향 포인트
             for i in range(point_num):
                 code = self._arm.set_servo_angle(angle=[182.6, 27.8, 27.7, 55.7, 95.4, 90.0], speed=self._angle_speed,
                                             mvacc=self._angle_acc, wait=False, radius=20.0)
@@ -1240,7 +1388,7 @@ class RobotMain(object):
                     return    
 
         try:
-            self.clientSocket.send('motion_point_station_finish'.encode('utf-8'))
+            self.clientSocket.send('motion_point_jig_finish'.encode('utf-8'))
         except:
             print('socket error')
         
@@ -1348,58 +1496,98 @@ class RobotMain(object):
         input()
         self.input_queue.put(True)
 
+
+    def order_msg_process(self):
+        # order_msg를 각 변수에 저장
+        self.order_msg = self.order_msg_queue.get()
+        self.jig = self.order_msg['jig']
+        self.topping_first = self.order_msg['topping_first']
+        self.topping_no = self.order_msg['topping_no']
+        self.topping = self.order_msg['topping']
+        self.topping_time = self.order_msg['topping_time']
+        self.spoon_angle = self.order_msg['spoon_angle']
+
     # Robot Main Run
     def run(self):
         try:
-            self.station = 'A' # 사용할 station (jig) 
-            self.cup_num = 10 # 남은 컵 개수
-            self.topping_first = False # 아이스크림보다 토핑을 먼저 받을지 말지. True : 먼저 받음
-            self.topping_no = False # 토핑 받지 않기
-            self.topping = 'ABC' # A / B / C / AB / AC / BC / ABC
-            self.topping_time = 2.0 # 총 토핑 받는 시간 == 토핑 량
-            self.next_customer = False # 다음 고객이 대기중인지 아닌지. True : 대기중
-            self.spoon_direction = 'R' # L(eft) R(ight) F(ront)
-            self.spoon_angle = 180.0 # Angle 기준
+            while self.is_alive:
+                time.sleep(1)
+                if self.state == 'icecream':
+                    ################ icecream의 경우 order_msg 변수의 정보를 이용하여 실행 환경을 설정 #######
+                    self.order_msg_process()
+                    # self.jig = 'A' # 사용할 jig
+                    # self.topping_first = False # 아이스크림보다 토핑을 먼저 받을지 말지. True : 먼저 받음
+                    # self.topping_no = False # 토핑 받지 않기
+                    # self.topping = 'ABC' # A / B / C / AB / AC / BC / ABC
+                    # self.topping_time = 2.0 # 총 토핑 받는 시간 == 토핑 량
+                    # self.spoon_direction = 'R' # L(eft) R(ight) F(ront)
+                    # self.spoon_angle = 180.0 # Angle 기준
 
-            # 신호를 받는 부분이 미구현이므로 인풋 신호 대기로 구현 (추후 변경 필요)
-            self.input_queue = queue.Queue()
-            listener_thread = threading.Thread(target=robot_main.input_listener, daemon=False)
-            listener_thread.start()
+                    # 신호를 받는 부분이 미구현이므로 인풋 신호 대기로 구현 (추후 변경 필요)
+                    self.input_queue = queue.Queue()
+                    listener_thread = threading.Thread(target=robot_main.input_listener, daemon=False)
+                    listener_thread.start()
 
-            self.motion_home() # home 자세 대기
-            self.motion_point_station() # capsule 위치시킬 station 가르키기
-            while True:
-                if not self.input_queue.empty():
-                    break
-                print("캡슐을 "+ self.station + " station에 배치하고 엔터 키 입력...")
-                time.sleep(3)
-            self.motion_grab_capsule() # 아이스크림 capsule 잡기
-            self.motion_check_sealing() # seal 제거 여부 확인하는 장소로 이동
-            # seal 제거 여부 확인 코드 위치 (예정)
-            # seal 제거 안함 코드 위치 (예정)
-            # seal 제거 확인 후 코드 진행
-            self.motion_place_capsule() # capsule 프레스 밑에 위치시키기
-            self.motion_grab_cup() # cup 잡기
-            if self.topping_no == True:
-                self.motion_topping_pass()
-                self.motion_make_icecream()
-            else:
-                if self.topping_first == True:
-                    self.motion_topping()
-                    self.motion_make_icecream()
-                else:
-                    self.motion_topping_pass()
-                    self.motion_make_icecream()
-                    self.motion_topping()
-            self.motion_serve()
-            
-            # 만약 다음 손님이 없다면.
-                # 수저 위치 안내 및 인사
-            if self.next_customer == False:
-                self.motion_point_spoon()
-                self.motion_bye()
-            self.motion_trash_capsule() # 캡슐 껍데기 버리기
-            self.motion_home() # home 자세 대기
+                    self.motion_home() # home 자세 대기
+                    self.motion_point_jig() # capsule 위치시킬 jig 가르키기
+                    while True:
+                        if not self.input_queue.empty():
+                            break
+                        print("캡슐을 "+ self.jig + " jig에 배치하고 엔터 키 입력...")
+                        time.sleep(3)
+                    self.motion_grab_capsule() # 아이스크림 capsule 잡기
+                    self.motion_check_sealing() # seal 제거 여부 확인하는 장소로 이동
+                    # seal 제거 여부 확인 코드 위치 (예정)
+                    # seal 제거 안함 코드 위치 (예정)
+                    # seal 제거 확인 후 코드 진행
+                    self.motion_place_capsule() # capsule 프레스 밑에 위치시키기
+                    self.motion_grab_cup() # cup 잡기
+                    if self.topping_no == True:
+                        self.motion_topping_pass()
+                        self.motion_make_icecream()
+                    else:
+                        if self.topping_first == True:
+                            self.motion_topping()
+                            self.motion_make_icecream()
+                        else:
+                            self.motion_topping_pass()
+                            self.motion_make_icecream()
+                            self.motion_topping()
+                    self.motion_serve()
+                    
+                    # 다음 손님이 있는지 확인
+                    if self.order_msg_queue.empty():
+                        self.next_customer = False
+                    else:
+                        self.next_customer = True
+                    # 만약 다음 손님이 없다면.
+                        # 수저 위치 안내 및 인사
+                    if self.next_customer == False:
+                        self.motion_point_spoon()
+                        self.motion_bye()
+                    self.motion_trash_capsule() # 캡슐 껍데기 버리기
+                    self.motion_home() # home 자세 대기
+                    if self.next_customer == True:
+                        self.state = 'icecream'
+                    else:
+                        self.state = 'ready'
+                elif self.state == 'test':
+                    print('test motion 진입')
+                    while True:
+                        code = self._arm.set_servo_angle(angle=self.position_home, speed=self._angle_speed,
+                                            mvacc=self._angle_acc, wait=True, radius=0.0)
+                        if not self._check_code(code, 'set_servo_angle'):
+                            return
+                        code = self._arm.set_servo_angle(angle=[190.2, -42.1, 7.4, 186.7, 41.5, -1.6], speed=self._angle_speed,
+                                            mvacc=self._angle_acc, wait=True, radius=0.0)
+                        if not self._check_code(code, 'set_servo_angle'):
+                            return
+                        if self.state == 'test_stop':
+                            code = self._arm.set_servo_angle(angle=self.position_home, speed=self._angle_speed,
+                                            mvacc=self._angle_acc, wait=True, radius=0.0)
+                            if not self._check_code(code, 'set_servo_angle'):
+                                return
+                            break
 
         except Exception as e:
             self.pprint('MainException: {}'.format(e))
@@ -1414,4 +1602,11 @@ if __name__ == '__main__':
     RobotMain.pprint('xArm-Python-SDK Version:{}'.format(version.__version__))
     arm = XArmAPI('192.168.1.162', baud_checkset=False)
     robot_main = RobotMain(arm)
-    robot_main.run()
+    # 소켓 통신용 스레드 동작. (지속적으로 메시지를 수령해야하기에.)
+    socket_thread = threading.Thread(target=robot_main.socket_connect)
+    socket_thread.start()
+    print('socket_thread start')    
+    # 로봇 서비스 스레드 동작. (수령받은 메시지에 기반하여서 계속 동작해야함.)
+    run_thread = threading.Thread(target=robot_main.run)
+    run_thread.start()
+    print('run_thread_started')
