@@ -233,7 +233,7 @@ font: 20px</string>
    <widget class="QLabel" name="topping_name_label_1">
     <property name="geometry">
      <rect>
-      <x>200</x>
+      <x>199</x>
       <y>200</y>
       <width>171</width>
       <height>21</height>
@@ -270,7 +270,7 @@ font: 20px</string>
    <widget class="QLabel" name="topping_name_label_2">
     <property name="geometry">
      <rect>
-      <x>380</x>
+      <x>384</x>
       <y>200</y>
       <width>171</width>
       <height>21</height>

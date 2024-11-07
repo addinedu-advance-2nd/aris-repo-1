@@ -398,8 +398,8 @@ color:red;</string>
     <property name="geometry">
      <rect>
       <x>30</x>
-      <y>620</y>
-      <width>441</width>
+      <y>630</y>
+      <width>481</width>
       <height>211</height>
      </rect>
     </property>
@@ -414,8 +414,8 @@ font: 20px</string>
    <widget class="QPushButton" name="receipt">
     <property name="geometry">
      <rect>
-      <x>550</x>
-      <y>690</y>
+      <x>600</x>
+      <y>770</y>
       <width>141</width>
       <height>61</height>
      </rect>
@@ -428,14 +428,14 @@ font: 20px
 </string>
     </property>
     <property name="text">
-     <string>결제</string>
+     <string>결제 및 추출</string>
     </property>
    </widget>
    <widget class="QPushButton" name="member_btn">
     <property name="geometry">
      <rect>
-      <x>580</x>
-      <y>470</y>
+      <x>620</x>
+      <y>440</y>
       <width>141</width>
       <height>61</height>
      </rect>
@@ -460,6 +460,79 @@ font: 20px
      <string>회원 등록</string>
     </property>
    </widget>
+   <widget class="QPushButton" name="Warning_btn">
+    <property name="geometry">
+     <rect>
+      <x>660</x>
+      <y>24</y>
+      <width>101</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">background-color: rgb(229, 79, 64);</string>
+    </property>
+    <property name="text">
+     <string>Warning</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="Position_btn">
+    <property name="geometry">
+     <rect>
+      <x>660</x>
+      <y>60</y>
+      <width>101</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">background-color: rgb(200, 200, 64);</string>
+    </property>
+    <property name="text">
+     <string>위치</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="Position_btn_2">
+    <property name="geometry">
+     <rect>
+      <x>660</x>
+      <y>97</y>
+      <width>101</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">background-color: rgb(100, 200, 50);</string>
+    </property>
+    <property name="text">
+     <string>관리자 페이지</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="logo_label_2">
+    <property name="geometry">
+     <rect>
+      <x>30</x>
+      <y>590</y>
+      <width>101</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>DejaVu Sans</family>
+      <pointsize>-1</pointsize>
+      <weight>50</weight>
+      <italic>false</italic>
+      <bold>false</bold>
+     </font>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">font: 20px</string>
+    </property>
+    <property name="text">
+     <string>주문 리스트</string>
+    </property>
+   </widget>
    <zorder>label_3</zorder>
    <zorder>label_2</zorder>
    <zorder>label</zorder>
@@ -477,6 +550,10 @@ font: 20px
    <zorder>order_list_widget</zorder>
    <zorder>receipt</zorder>
    <zorder>member_btn</zorder>
+   <zorder>Warning_btn</zorder>
+   <zorder>Position_btn</zorder>
+   <zorder>Position_btn_2</zorder>
+   <zorder>logo_label_2</zorder>
   </widget>
  </widget>
  <resources/>
