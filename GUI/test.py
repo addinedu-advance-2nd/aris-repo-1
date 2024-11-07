@@ -240,8 +240,20 @@ class OrderClass():
         self.order_receipt = ""
         
 
-    # def order_receipt_process(self):
-
+    def order_receipt_process(self):
+        # 우선 주문이 하나만 들어온다고 가정하고 코드 작성
+        topping_orders = self.order_receipt[0].split(' + ')
+        # 로투스 레인보우 오레오
+        # topping 정보
+        # kor_topping_list = ["로투스", "레인보우", "오레오"]
+        # topping_signal = ""
+        # if len(orders)>1:
+        #     for i in range(len(kor_topping_list)):
+        #         if kor_topping_list[i] in orders[1:]:
+        #             topping_signal += "1"
+        #         else:
+        #             topping_signal += "0"
+        
 
     
     def socket_robot(self):
@@ -262,7 +274,7 @@ class OrderClass():
                     break
             
             # order_receipt 처리부
-
+            self.order_receipt_process()
 
             msg_type = "icecream"
             if msg_type == "icecream":
