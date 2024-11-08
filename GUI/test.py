@@ -300,6 +300,9 @@ class OrderClass():
     def __init__(self):
         super().__init__()
         self.order_press = False
+        self.avaliable_jig_A = True
+        self.avaliable_jig_B = True
+        self.avaliable_jig_C = True
         self.order_receipt = ""
         
 
@@ -308,15 +311,46 @@ class OrderClass():
         topping_orders = self.order_receipt[0].split(' + ')
         # 로투스 레인보우 오레오
         # topping 정보
-        # kor_topping_list = ["로투스", "레인보우", "오레오"]
-        # topping_signal = ""
-        # if len(orders)>1:
-        #     for i in range(len(kor_topping_list)):
-        #         if kor_topping_list[i] in orders[1:]:
-        #             topping_signal += "1"
-        #         else:
-        #             topping_signal += "0"
+        kor_topping_list = ["로투스", "레인보우", "오레오"]
+        topping_signal = ""
+        if len(topping_orders)>1:
+            for i in range(len(kor_topping_list)):
+                if kor_topping_list[i] in topping_orders[1:]:
+                    topping_signal += "1"
+                else:
+                    topping_signal += "0"
+        # jig 선택부
+        # jig의 가용 상태를 저장해두고 비어있는 jig를 A B C 순으로 사용
+        if self.avaliable_jig_A:
+            jig = "A"
+            self.avaliable_jig_A = False
+        elif self.avaliable_jig_B:
+            jig = "B"
+            self.avaliable_jig_B = False
+        elif self.avaliable_jig_C:
+            jig = "C"
+            self.avaliable_jig_C = False
+        else:
+            # 사용 가능한 jig가 없는 경우
+            print("there is no avaliable jig!")
+        jig = 'A' # 사용할 jig  
+        topping_first = False # 아이스크림보다 토핑을 먼저 받을지 말지. True : 먼저 받음
+        topping_no = False # 토핑 받지 않기
+        topping = topping_signal # A / B / C / AB / AC / BC / ABC
+        topping_time = 2.0 # 총 토핑 받는 시간 == 토핑 량
+        spoon_angle = 180.0 # Angle 기준
+        data_icecream = {
+            "jig" : jig,
+            "topping_first" : topping_first,
+            "topping_no" : topping_no,
+            "topping" : topping,
+            "topping_time" : topping_time,
+            "spoon_angle" : spoon_angle,
+
+        }
         
+
+
 
     
     def socket_robot(self):
