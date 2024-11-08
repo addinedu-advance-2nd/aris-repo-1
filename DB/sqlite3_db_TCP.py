@@ -59,6 +59,7 @@ class Database():
                 while True:
                     try:
                         self.clientSocket, addr_info = self.serverSocket.accept()
+                        self.socket_test()
                         print("socket accepted")
                         break
                     except socket.timeout:
@@ -72,8 +73,7 @@ class Database():
         print(self.clientSocket)
 
         self.connected = True
-        self.state = 'ready'
-
+        
         # 지속적으로 메시지 수령.
         while self.connected:
             print("메시지 대기 중...")
@@ -594,6 +594,8 @@ if __name__ == '__main__':
     socket_thread = threading.Thread(target=DB_main.socket_connect)
     socket_thread.start()
     print('socket_thread start')    
+
+    DB_main.socket_test()
     # 서비스 스레드 동작. (수령받은 메시지에 기반하여서 계속 동작해야함.)
     #run_thread = threading.Thread(target=Database.run)
     #run_thread.start()
