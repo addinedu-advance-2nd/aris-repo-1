@@ -289,9 +289,8 @@ class WindowClass(QMainWindow, main_page_class):
 
     def show_receipt(self): #임시 영수증 출력
         current_orders = self.order_model.stringList()
-        # print(my_window.order_model.stringList())
         order.order_receipt = self.order_model.stringList()
-        order.order_press = True
+        order.icecream_order()
         receipt_dialog = OrderListDialog(current_orders, self.user_name, self.user_phone, self)
         receipt_dialog.exec_()
 
@@ -309,7 +308,7 @@ class OrderClass():
     def order_receipt_process(self):
         # 우선 주문이 하나만 들어온다고 가정하고 코드 작성
         topping_orders = self.order_receipt[0].split(' + ')
-        # 로투스 레인보우 오레오
+        
         # topping 정보
         kor_topping_list = ["로투스", "레인보우", "오레오"]
         topping_signal = ""
@@ -319,6 +318,12 @@ class OrderClass():
                     topping_signal += "1"
                 else:
                     topping_signal += "0"
+        if topping_signal == "000":
+            topping_no = True
+        else:
+            topping_no = False
+        topping = topping_signal
+
         # jig 선택부
         # jig의 가용 상태를 저장해두고 비어있는 jig를 A B C 순으로 사용
         if self.avaliable_jig_A:
@@ -333,12 +338,13 @@ class OrderClass():
         else:
             # 사용 가능한 jig가 없는 경우
             print("there is no avaliable jig!")
-        jig = 'A' # 사용할 jig  
+
+        # 관리자쪽의 설정 부분
         topping_first = False # 아이스크림보다 토핑을 먼저 받을지 말지. True : 먼저 받음
-        topping_no = False # 토핑 받지 않기
-        topping = topping_signal # A / B / C / AB / AC / BC / ABC
-        topping_time = 2.0 # 총 토핑 받는 시간 == 토핑 량
-        spoon_angle = 180.0 # Angle 기준
+        topping_time = 3.0 # 총 토핑 받는 시간 == 토핑 량
+        spoon_angle = 180.0 # 스푼의 위치 (Angle 기준) 기계 기준 오른쪽 180.0 / 중앙 270.0 / 왼쪽 355.0 
+        
+        # 메시지 생성부
         data_icecream = {
             "jig" : jig,
             "topping_first" : topping_first,
@@ -346,14 +352,24 @@ class OrderClass():
             "topping" : topping,
             "topping_time" : topping_time,
             "spoon_angle" : spoon_angle,
-
         }
+
+        return data_icecream
         
 
+    # robot arm에 아이스크림 추출 명령 전달 함수
+    def icecream_order(self):
+        data_icecream = self.order_receipt_process()
+        msg_type = "icecream"
+
+        json_data = json.dumps(data_icecream)
+        data = msg_type + '/' + json_data
+
+        self.robot_client_socket.sendall(data.encode())
 
 
-    
-    def socket_robot(self):
+    # robot arm과의 socket 연결부
+    def connect_robot(self):
         self.robot_ADDR = '192.168.0.17'
         self.robot_PORT = 65432
         
@@ -362,42 +378,6 @@ class OrderClass():
         # 추후 시간이 된다면 관리자 페이지를 만들어서 로봇과 통신 연결 / 로봇 테스트 / 설정 변경 등 구현
         self.robot_client_socket.connect((self.robot_ADDR, self.robot_PORT))
 
-        while True:
-            print("추출 버튼을 눌러주세요")
-            while True:
-                time.sleep(1)
-                if self.order_press == True:
-                    self.order_press = False
-                    break
-            
-            # order_receipt 처리부
-            self.order_receipt_process()
-
-            msg_type = "icecream"
-            if msg_type == "icecream":
-                jig = 'A' # 사용할 jig  
-                topping_first = False # 아이스크림보다 토핑을 먼저 받을지 말지. True : 먼저 받음
-                topping_no = False # 토핑 받지 않기
-                topping = 'ABC' # A / B / C / AB / AC / BC / ABC
-                topping_time = 2.0 # 총 토핑 받는 시간 == 토핑 량
-                spoon_angle = 180.0 # Angle 기준
-                data_icecream = {
-                    "jig" : jig,
-                    "topping_first" : topping_first,
-                    "topping_no" : topping_no,
-                    "topping" : topping,
-                    "topping_time" : topping_time,
-                    "spoon_angle" : spoon_angle,
-
-                }
-
-                json_data = json.dumps(data_icecream)
-                data = msg_type + '/' + json_data
-            else:
-                data = msg_type
-
-        
-            self.robot_client_socket.sendall(data.encode())
             
         
 
@@ -408,9 +388,9 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     my_window = WindowClass()
     order = OrderClass()
-    order_thread = threading.Thread(target=order.socket_robot)
-    order_thread.start()
-    print("order_thread start")
-    print("hello")
+    order.connect_robot()
+    # order_thread = threading.Thread(target=order.socket_robot)
+    # order_thread.start()
+    # print("order_thread start")
     my_window.show()
     sys.exit(app.exec_())
