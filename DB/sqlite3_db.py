@@ -72,6 +72,10 @@ def update_order_history(datetime_now, flavor, toppings, membership_n):
 
         # save chainge
         con_Order.commit()
+
+        # if membership number exist, update member_prefer_rewards DB
+        if membership_n != "":
+            update_member_prefer_rewards(datetime_now,flavor,membership_n)
         
         # end
         con_Order.close()
@@ -83,79 +87,83 @@ def update_order_history(datetime_now, flavor, toppings, membership_n):
     return db_sign
 
 # 신규회원 - 회원정보&회원적립 및 선호 DB 내역 입력
-def add_new_member(datetime_now,name, phone, flavor):
+def add_new_member(datetime_now,name, phone):
     #default
-    global member_photo_path
-    member_name = '고객'
-    member_phone = '01012345678'
-    members_number='0'
+    global member_photo_path, Flavor_list
+    member_name = ""
+    member_phone = ""
+    members_number="0"
+    db_sign=""
 
-    # 회원 번호 생성
-    gen = SnowflakeGenerator(24)
-    members_number = next(gen)
+    try:
+        # 회원 번호 생성
+        gen = SnowflakeGenerator(24)
+        members_number = next(gen)
 
-    # 회원번호 중복확인
-    #check_member_num_duplication(members_number)
+        # 회원번호 중복확인
+        #check_member_num_duplication(members_number)
 
-    # 이름 처리
-    if name:
-        member_name = str(name)
-    
-    # 폰 번호 처리
-    if phone:
-        member_phone = str(phone)
+        # 이름 처리
+        if name:
+            member_name = str(name)
+        
+        # 폰 번호 처리 "010-0000-0000"으로 들어온다고 가정
+        if phone:
+            member_phone = str(phone)
 
-    #이미지 저장 위치 기록
-    # 가장 최근 촬영 이미지 선택, 이름바꾸기
-    new_member_photo_path=Find_rename_face_image(members_number)
+        #이미지 저장 위치 기록
+        # 키오스크에서 가장 최근 전송받은 이미지 선택, 이름바꾸기
+        new_member_photo_path = Find_rename_face_image(members_number)
 
-    """
-    if os.path.isfile(new_member_photo_path):
-        print('complite adding new member')
-    else:
-        print("something wrong during save face photo")
-    """
-
-    # Membership DB - 회원 정보 기록
-    con_Membership = sqlite3.connect(Membership_db_abspath)
-    cur_Membership = con_Membership.cursor()
-
-    sql = (datetime_now,member_name,member_phone,members_number,new_member_photo_path)
-    print(sql)
-    # Insert a row of data
-    cur_Membership.execute("""INSERT INTO Membership VALUES (?,?,?,?,?)""",sql)
-    # save chainge
-    con_Membership.commit()
-    # end
-    con_Membership.close()
-    
-
-    # Membership preference & reward DB - 멤버쉽 쿠폰 생성
-    #Reward_preference
-    con_Reward_preference = sqlite3.connect(Reward_preference_db_abs_path)
-    cur_Reward_preference = con_Reward_preference.cursor()
-
-    # default value
-    total_order=1
-    current_count = 1
-    menu_history = ""
-    flavor_num=Flavor_list.index(flavor) 
-    for i in range(len(Flavor_list)):  
-        if i == flavor_num:
-            menu_history += "1_"
+        """
+        if os.path.isfile(new_member_photo_path):
+            print('complite adding new member')
         else:
+            print("something wrong during save face photo")
+        """
+
+        # Membership DB - 회원 정보 기록
+        con_Membership = sqlite3.connect(Membership_db_abspath)
+        cur_Membership = con_Membership.cursor()
+
+        sql = (datetime_now,member_name,member_phone,members_number,new_member_photo_path)
+        #print(sql)
+        # Insert a row of data
+        cur_Membership.execute("""INSERT INTO Membership VALUES (?,?,?,?,?)""",sql)
+        # save chainge
+        con_Membership.commit()
+        # end
+        con_Membership.close()
+        
+
+        # Membership preference & reward DB - 멤버쉽 쿠폰 생성
+        #Reward_preference
+        con_Reward_preference = sqlite3.connect(Reward_preference_db_abs_path)
+        cur_Reward_preference = con_Reward_preference.cursor()
+
+        # default value
+        total_order=0
+        current_count = 0
+        menu_history = ""
+        for i in range(len(Flavor_list)):  
             menu_history += "0_" 
 
 
-    last_menu=flavor
-    last_menu_cont=1
+        last_menu="Null"
+        last_menu_cont=0
 
-    cur_Reward_preference.execute( """INSERT INTO Reward_preference Values (?,?,?,?,?,?,?)""",
-                                    (datetime_now,members_number,total_order,current_count,menu_history,last_menu,last_menu_cont))
-    con_Reward_preference.commit()
-    con_Reward_preference.close()
+        cur_Reward_preference.execute( """INSERT INTO Reward_preference Values (?,?,?,?,?,?,?)""",
+                                        (datetime_now,members_number,total_order,current_count,menu_history,last_menu,last_menu_cont))
+        con_Reward_preference.commit()
+        con_Reward_preference.close()
 
-    return members_number
+        db_sign = True
+
+    except:
+        db_sign = False
+
+
+    return db_sign, members_number
 
 # 회원번호 중복확인 - 미구현
 def check_member_num_duplication(members_number):
@@ -164,11 +172,40 @@ def check_member_num_duplication(members_number):
 
     return is_duplication
 
-# 회원번호 조회 - 미구현(얼굴인식과 연계예정)
-def is_member(members_number):
-    # 필요시 구축, 해당 회원번호가 멤버 목록에 있는지
+# 회원번호 조회 - (얼굴인식과 연계예정)
+def is_member(member_name,member_phone):
+    membership_db_sign = False
+    members_number =""
+    join_time =""
+
+    # 해당 회원번호가 멤버 목록에 있는지
+    # Membership DB - 회원 정보 기록
+    con_Membership = sqlite3.connect(Membership_db_abspath)
+    cur_Membership = con_Membership.cursor()
+
+    sql = (member_name,member_phone)
+    print("186 DB/sqlite3_db:",sql)
+    # Insert a row of data
+   
+    cur_Membership.execute("""SELECT * FROM Membership WHERE name=(?) and phone_num = (?)""",sql)
+   
     
-    return 
+    for row in cur_Membership:
+        
+        # 회원 정보 리턴
+        join_time=row[0]
+        print("이미 가입한 이력이 있어요.",join_time)
+        members_number = row[3]
+        membership_db_sign = True
+        
+    if join_time == "":
+        membership_db_sign = False
+
+    #print("199 DB/sqlite3_db:",row)
+    # end
+    con_Membership.close()
+    
+    return membership_db_sign, members_number
 
 # 얼굴인식 이미지 회원번호와 매칭 - 미구현(얼굴인식 및 사진과 연계), 이미지 경오 리턴
 def Find_rename_face_image(members_number):
@@ -206,7 +243,7 @@ def is_reward_available(membership_n):
     global reward_counts
     return
 
-# 회원의 구매 및 선호기록 - 최애메뉴 선정부분만 미완성
+# 회원의 구매 및 선호기록 
 def update_member_prefer_rewards(date, flavor, membership_n):
     global Flavor_list
     total_order=0
