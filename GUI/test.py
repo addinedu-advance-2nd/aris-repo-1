@@ -25,12 +25,15 @@ image_dir = os.path.join(base_dir, "image")
 # 이미지 파일 경로
 pixmap_path = os.path.join(image_dir, "str.png")
 pixmap1_path = os.path.join(image_dir, "ban.png")
-pixmap2_path = os.path.join(image_dir, "choco.png")
+pixmap2_path = os.path.join(image_dir, "choco.png") 
 pixmap3_path = os.path.join(image_dir, "topping1.png")
 pixmap4_path = os.path.join(image_dir, "topping2.png")
 pixmap5_path = os.path.join(image_dir, "topping3.png")
 pixmap6_path = os.path.join(image_dir, "no.png")
 position_path = os.path.join(image_dir,"position.png")
+minus_path = os.path.join(image_dir,"minus_icon.png")
+plus_path = os.path.join(image_dir,"plus-icon.png")
+cancel_path = os.path.join(image_dir,"cancel_icon.png")
 # UI 경로
 main_file_path = os.path.join(base_dir, "untitled.ui")
 topping_file_path = os.path.join(base_dir, "sub.ui")
@@ -40,6 +43,7 @@ main_page_class = uic.loadUiType(main_file_path)[0]
 topping_page_class = uic.loadUiType(topping_file_path)[0]
 memberinfo_page_class = uic.loadUiType(memberinfo_file_path)[0]
 position_page_class = uic.loadUiType(position_file_path)[0]
+
 
 # sub.ui(토핑 선택창) 설정 
 class NewWindow(QDialog, topping_page_class):
@@ -248,8 +252,18 @@ class WindowClass(QMainWindow, main_page_class):
         self.menu_price_label_2.setText("2000 원")
         self.menu_price_label_3.setText("2000 원")
         # 리스트 받아옴
+        
         self.order_model = QStringListModel()
-        self.order_list_widget.setModel(self.order_model) 
+        self.order_list_widget.setModel(self.order_model)
+        self.order_model.setStringList([])  # 초기 빈 리스트 설정
+        # 삭제 버튼
+        self.delete_btn_1.clicked.connect(lambda: self.delete_item_at_index(0))
+        self.delete_btn_2.clicked.connect(lambda: self.delete_item_at_index(1))
+        self.delete_btn_3.clicked.connect(lambda: self.delete_item_at_index(2))
+        self.delete_btn_4.clicked.connect(lambda: self.delete_item_at_index(3))
+
+
+
         self.receipt.clicked.connect(self.show_receipt) # 임시 영수증 출력
         self.member_btn.clicked.connect(self.open_member_window)
         # 임시 버튼
@@ -266,7 +280,14 @@ class WindowClass(QMainWindow, main_page_class):
     def Warning_event(self):
         QMessageBox.warning(self,'경고','               뒤로 물러나 주세요                  ')
 
+    def delete_item_at_index(self, index):
+        # 현재 주문 리스트 가져오기
+        current_orders = self.order_model.stringList()
 
+        # index가 리스트 범위 내인지 확인 후 삭제
+        if 0 <= index < len(current_orders):
+            del current_orders[index]  # 해당 인덱스의 항목 삭제
+            self.order_model.setStringList(current_orders)  
     def update_member_info(self, name, phone):
         # 받은 이름과 전화번호로 레이블을 업데이트
         self.user_name = name
@@ -294,6 +315,7 @@ class WindowClass(QMainWindow, main_page_class):
         order.order_press = True
         receipt_dialog = OrderListDialog(current_orders, self.user_name, self.user_phone, self)
         receipt_dialog.exec_()
+        self.order_model.setStringList([])
 
 
 class OrderClass():
