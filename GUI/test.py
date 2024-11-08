@@ -32,20 +32,33 @@ pixmap4_path = os.path.join(image_dir, "topping2.png")
 pixmap5_path = os.path.join(image_dir, "topping3.png")
 pixmap6_path = os.path.join(image_dir, "no.png")
 position_path = os.path.join(image_dir,"position.png")
-minus_path = os.path.join(image_dir,"minus_icon.png")
-plus_path = os.path.join(image_dir,"plus-icon.png")
-cancel_path = os.path.join(image_dir,"cancel_icon.png")
+
 # UI 경로
 main_file_path = os.path.join(base_dir, "untitled.ui")
 topping_file_path = os.path.join(base_dir, "sub.ui")
 memberinfo_file_path = os.path.join(base_dir, "memberinfo.ui")
 position_file_path = os.path.join(base_dir,'position.ui')
+splashscreen_file_path = os.path.join(base_dir,"splashscreen.ui")
 main_page_class = uic.loadUiType(main_file_path)[0]
 topping_page_class = uic.loadUiType(topping_file_path)[0]
 memberinfo_page_class = uic.loadUiType(memberinfo_file_path)[0]
 position_page_class = uic.loadUiType(position_file_path)[0]
+splashscreen_page_class = uic.loadUiType(splashscreen_file_path)[0]
 
+class SplashScreen(QDialog,splashscreen_page_class):
+    def __init__(self):
+        super().__init__()
+        self.setupUi(self)
+    def mousePressEvent(self, event):
+        # 마우스를 클릭하면 메인 화면으로 전환
+        self.open_main_window()
 
+    def open_main_window(self):
+        # 메인 화면을 표시하고 스플래시 화면을 닫음
+        main_window_position = self.pos()
+        self.close()  # 현재 스플래시 화면을 닫음
+        my_window.move(main_window_position)
+        my_window.show()
 # sub.ui(토핑 선택창) 설정 
 class NewWindow(QDialog, topping_page_class):
     def __init__(self, menu_name, parent=None):
@@ -273,10 +286,19 @@ class WindowClass(QMainWindow, main_page_class):
 
         self.user_name = ""
         self.user_phone = ""
+        self.update_receipt_button_state()
     # 제조 과정 중 사람 접근 확인 시 안내 문구 - 임시로 버튼 활용
     def open_position_window(self):
         position_dialog = PositionDialog(self)
         position_dialog.exec_()
+
+    def update_receipt_button_state(self):
+        if not self.order_model.stringList():
+            self.receipt.setEnabled(False)
+            self.receipt.setStyleSheet("background-color: grey;")
+        else:#e54f40
+            self.receipt.setEnabled(True)
+            self.receipt.setStyleSheet("background-color: #e54f40;")
 
     def Warning_event(self):
         QMessageBox.warning(self,'경고','               뒤로 물러나 주세요                  ')
@@ -288,7 +310,8 @@ class WindowClass(QMainWindow, main_page_class):
         # index가 리스트 범위 내인지 확인 후 삭제
         if 0 <= index < len(current_orders):
             del current_orders[index]  # 해당 인덱스의 항목 삭제
-            self.order_model.setStringList(current_orders)  
+            self.order_model.setStringList(current_orders)
+        self.update_receipt_button_state()
     def update_member_info(self, name, phone):
         # 받은 이름과 전화번호로 레이블을 업데이트
         self.user_name = name
@@ -308,6 +331,7 @@ class WindowClass(QMainWindow, main_page_class):
         current_orders = self.order_model.stringList()
         current_orders.append(order_string)
         self.order_model.setStringList(current_orders)
+        self.update_receipt_button_state()
 
     def show_receipt(self): #임시 영수증 출력
         current_orders = self.order_model.stringList()
@@ -392,7 +416,7 @@ class OrderClass():
         json_data = json.dumps(data_icecream)
         data = msg_type + '/' + json_data
 
-        self.robot_client_socket.sendall(data.encode())
+        # self.robot_client_socket.sendall(data.encode())
 
 
     # robot arm과의 socket 연결부
@@ -469,6 +493,8 @@ class OrderClass():
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     my_window = WindowClass()
+    splash_screen = SplashScreen()
+    splash_screen.exec_()
     order = OrderClass()
     # order.connect_robot()
     order_thread = threading.Thread(target=order.connect_robot, daemon=True)
