@@ -411,5 +411,6 @@ if __name__ == "__main__":
     order_thread = threading.Thread(target=order.socket_robot)
     order_thread.start()
     print("order_thread start")
+    print("hello")
     my_window.show()
     sys.exit(app.exec_())
