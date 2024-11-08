@@ -223,7 +223,6 @@ class WindowClass(QMainWindow, main_page_class):
 
         try:
             db_sign, db_message, self.user_membership_num =db_new_member(self.user_name, self.user_phone)
-            print("225:",db_sign, db_message, self.user_membership_num)
         except:
             print("회원가입기능오류 - update member info() & DB ")
         
@@ -253,9 +252,9 @@ class WindowClass(QMainWindow, main_page_class):
         receipt_dialog = OrderListDialog(current_orders, self.user_name, self.user_phone, self)
         
         # DB 전송 - 결제시 한번에
-        print("current_orders: ",current_orders)
+        #print("current_orders: ",current_orders)
         if current_orders != []: # 비어있으면, 주문전송x
-            print("show_receipt:",db_update_order(current_orders,self.user_membership_num)) 
+            db_update_order(current_orders,self.user_membership_num)
 
         receipt_dialog.exec_()
 
@@ -267,18 +266,18 @@ def db_new_member(member_name, member_phone):
     db_sign = False
 
     datetime_now = datetime.datetime.now()
-    print("268")
+    
     membership_db_sign, members_number = sqlite3_db.is_member(member_name,member_phone)
-    print("270: membership_db_sign, members_number: ", membership_db_sign, members_number)
+    
     if membership_db_sign:
         db_massage = "member" #이미 회원 가입이 되어있는 경우 (가입한것 까먹고 또 가입)
         db_sign = True
-        print("274 already signed member, your membership number is ",members_number)
+        print("already signed member, your membership number is ",members_number)
     else:
         db_sign, members_number = sqlite3_db.add_new_member(datetime_now, name=member_name, phone=member_phone)
         db_sign = True
         db_massage = "New member added"
-        print("279 newbi membership number:",members_number)
+        print("279 new membership number:",members_number)
       
     return db_sign, db_massage, members_number 
 
