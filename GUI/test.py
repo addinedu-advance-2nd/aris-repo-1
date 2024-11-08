@@ -483,10 +483,95 @@ class OrderClass():
                             print("서버에 연결할 수 없습니다. 2초 후 재시도합니다.")
                         
                     except Exception as e:
-                        self.print('MainException: {}'.format(e))
+                        print('MainException: {}'.format(e))
                         print('except')
                         # pass
                 
+
+class DB_Access():
+    def __init__(self):
+        super().__init__()
+
+
+        def socket_DB(self):
+            self.ADDR = '192.168.0.28'          # DB 주소로 변경
+            self.PORT = 65432                   # DB의 Port로 변경
+            
+            self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            
+            # 추후 시간이 된다면 관리자 페이지를 만들어서 로봇과 통신 연결 / 로봇 테스트 / 설정 변경 등 구현
+            while True:
+                try:
+                    self.client_socket.connect((self.ADDR, self.PORT))
+                    self.connected = True
+                    break
+                except socket.error as e:
+                    print(f"서버에 연결할 수 없습니다: {e}")
+                    print("2초 후 연결을 재시도 합니다")
+                    time.sleep(2.0)
+
+            while self.connected:
+                time.sleep(1)
+                print("DB로부터 메시지 수신 대기중")
+                try:
+                    # 대기 시간 설정
+                    self.client_socket.settimeout(10.0)
+                    # 메시지 수령
+                    self.recv_msg = self.client_socket.recv(1024).decode('utf-8')
+
+                    # 메시지가 비어 있는 경우. 연결이 끊겼으므로 재연결을 위해 예외 처리
+                    if self.recv_msg == '':
+                        print("received empty msg")
+                        raise Exception("empty msg")
+                    
+                    self.recv_msg = self.recv_msg.split('/')
+                    print("receieved msg : "+ self.recv_msg)
+
+                    #########################################
+                    # 전달받는 메시지 처리부
+                    if self.recv_msg[0] == 'db_error':
+                        print("DB 데이터 처리 중 에러 발생")
+                    if self.recv_msg[0] == 'order_updated':
+                        print("요청한 주문내역 업데이트 완료")
+                    if self.recv_msg[0] == 'new_member_added':
+                        print("회원 가입 및 사진 저장 완료")
+                    if self.recv_msg[0] == 'already_registered':
+                        print("기존에 등록된 회원임")
+                        # 회원의 선호 정보를 수신
+                    #########################################
+                
+                except socket.timeout:
+                    print('MainException: {}'.format(socket.timeout))
+                except Exception as e:
+                    print('MainException: {}'.format(e))
+                    self.connected = False
+                    print('connection lost')
+                    # 재연결 시도
+                    while True:
+                        time.sleep(2)
+                        try:
+                            # 소켓 정리
+                            self.client_socket.shutdown(socket.SHUT_RDWR)
+                            self.client_socket.close()
+                            
+                            # 소켓 설정
+                            self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+                            try:
+                                self.client_socket.connect((self.ADDR, self.PORT))
+                                self.connected = True
+                            except socket.error as e:
+                                print("서버에 연결할 수 없습니다. 2초 후 재시도합니다.")
+                            
+                        except Exception as e:
+                            print('MainException: {}'.format(e))
+                            print('except')
+                            # pass
+
+
+    # DB에게 데이터를 전송하는 함수를 짤 때 self.connected를 확인하면 좋을 듯
+    
+
 
 
             
