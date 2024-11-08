@@ -16,6 +16,7 @@ import socket
 import time
 import json
 import threading
+import queue
 
 
 # 파일경로
@@ -303,6 +304,7 @@ class OrderClass():
         self.avaliable_jig_B = True
         self.avaliable_jig_C = True
         self.order_receipt = ""
+        self.order_queue = queue.Queue()
         
 
     def order_receipt_process(self):
@@ -339,6 +341,8 @@ class OrderClass():
             # 사용 가능한 jig가 없는 경우
             print("there is no avaliable jig!")
 
+        
+
         # 관리자쪽의 설정 부분
         topping_first = False # 아이스크림보다 토핑을 먼저 받을지 말지. True : 먼저 받음
         topping_time = 3.0 # 총 토핑 받는 시간 == 토핑 량
@@ -359,6 +363,7 @@ class OrderClass():
 
     # robot arm에 아이스크림 추출 명령 전달 함수
     def icecream_order(self):
+
         data_icecream = self.order_receipt_process()
         msg_type = "icecream"
 
@@ -377,20 +382,75 @@ class OrderClass():
         
         # 추후 시간이 된다면 관리자 페이지를 만들어서 로봇과 통신 연결 / 로봇 테스트 / 설정 변경 등 구현
         self.robot_client_socket.connect((self.robot_ADDR, self.robot_PORT))
+        self.connected = True
+        # 연결을 계속 유지함
+        # 데이터를 수신받아서 정보를 저장함. ex) 지그 사용 완료 및 서비스 완료.
+
+        while self.connected:
+            time.sleep(1)
+            print("로봇으로부터 메시지 수신 대기중")
+            try:
+                # 대기 시간 설정
+                self.robot_client_socket.settimeout(10.0)
+                # 메시지 수령
+                self.recv_msg = self.robot_client_socket.recv(1024).decode('utf-8')
+
+                # 메시지가 비어 있는 경우. 연결이 끊겼으므로 재연결을 위해 예외 처리
+                if self.recv_msg == '':
+                    print("received empty msg")
+                    raise Exception("empty msg")
+                
+                self.recv_msg = self.recv_msg.split('/')
+                print(self.recv_msg)
+                if self.recv_msg[0] == 'icecream_service_finish':
+                    print("Jig " + self.recv_msg[1] + " icecream service end")
+                    print("Set jig " + self.recv_msg[1] + " avaliable")
+                    if self.recv_msg[1] == 'A':
+                        self.avaliable_jig_A = True
+                    elif self.recv_msg[1] == 'B':
+                        self.avaliable_jig_B = True
+                    elif self.recv_msg[1] == 'C':
+                        self.avaliable_jig_C = True
+                
+            
+            except socket.timeout:
+                print('MainException: {}'.format(socket.timeout))
+            except Exception as e:
+                print('MainException: {}'.format(e))
+                self.connected = False
+                print('connection lost')
+                # 재연결 시도
+                while True:
+                    time.sleep(2)
+                    try:
+                        # 소켓 정리
+                        self.robot_client_socket.shutdown(socket.SHUT_RDWR)
+                        self.robot_client_socket.close()
+                        
+                        # 소켓 설정
+                        self.robot_client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+                        try:
+                            self.robot_client_socket.connect((self.robot_ADDR, self.robot_PORT))
+                            self.connected = True
+                        except socket.error as e:
+                            print("서버에 연결할 수 없습니다. 2초 후 재시도합니다.")
+                        
+                    except Exception as e:
+                        self.print('MainException: {}'.format(e))
+                        print('except')
+                        # pass
+                
+
 
             
-        
-
-        
-
-
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     my_window = WindowClass()
     order = OrderClass()
-    order.connect_robot()
-    # order_thread = threading.Thread(target=order.socket_robot)
-    # order_thread.start()
-    # print("order_thread start")
+    # order.connect_robot()
+    order_thread = threading.Thread(target=order.connect_robot, daemon=True)
+    order_thread.start()
+    print("order_thread start")
     my_window.show()
     sys.exit(app.exec_())

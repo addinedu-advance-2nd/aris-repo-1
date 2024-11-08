@@ -43,6 +43,7 @@ class RobotMain(object):
         self._funcs = {}
         self._robot_init()
         self.state = 'stopped'
+        self.next_customer = False
         self.order_msg_queue = queue.Queue()
 
         self.position_home = [179.2, -42.1, 7.4, 186.7, 41.5, -1.6]  # angle
@@ -245,6 +246,9 @@ class RobotMain(object):
                     self.clientSocket.send('ERROR : wrong msg received'.encode('utf-8'))
                     print('got unexpected msg!')
                 
+            except socket.timeout:
+                self.pprint('MainException: {}'.format(socket.timeout))
+
             except Exception as e:
                 self.pprint('MainException: {}'.format(e))
                 self.connected = False
@@ -681,24 +685,24 @@ class RobotMain(object):
         self.topping_time_B = 0.0
         self.topping_time_C = 0.0
         # 각 토핑을 얼마나 받는지 결정
-        if self.topping == 'ABC':
+        if self.topping == '111':
             self.topping_time_A = self.topping_time / 3.0
             self.topping_time_B = self.topping_time / 3.0
             self.topping_time_C = self.topping_time / 3.0
-        elif self.topping == 'AB':
+        elif self.topping == '110':
             self.topping_time_A = self.topping_time / 2.0
             self.topping_time_B = self.topping_time / 2.0
-        elif self.topping == 'AC':
+        elif self.topping == '101':
             self.topping_time_A = self.topping_time / 2.0
             self.topping_time_C = self.topping_time / 2.0
-        elif self.topping == 'BC':
+        elif self.topping == '011':
             self.topping_time_B = self.topping_time / 2.0
             self.topping_time_C = self.topping_time / 2.0
-        elif self.topping == 'A':
+        elif self.topping == '100':
             self.topping_time_A = self.topping_time
-        elif self.topping == 'B':
+        elif self.topping == '010':
             self.topping_time_B = self.topping_time
-        elif self.topping == 'C':
+        elif self.topping == '001':
             self.topping_time_C = self.topping_time
 
 
@@ -1523,50 +1527,58 @@ class RobotMain(object):
                     # self.spoon_direction = 'R' # L(eft) R(ight) F(ront)
                     # self.spoon_angle = 180.0 # Angle 기준
 
-                    # 신호를 받는 부분이 미구현이므로 인풋 신호 대기로 구현 (추후 변경 필요)
-                    self.input_queue = queue.Queue()
-                    listener_thread = threading.Thread(target=robot_main.input_listener, daemon=False)
-                    listener_thread.start()
+                    # # 신호를 받는 부분이 미구현이므로 인풋 신호 대기로 구현 (추후 변경 필요)
+                    # self.input_queue = queue.Queue()
+                    # listener_thread = threading.Thread(target=robot_main.input_listener, daemon=False)
+                    # listener_thread.start()
 
-                    self.motion_home() # home 자세 대기
-                    self.motion_point_jig() # capsule 위치시킬 jig 가르키기
-                    while True:
-                        if not self.input_queue.empty():
-                            break
-                        print("캡슐을 "+ self.jig + " jig에 배치하고 엔터 키 입력...")
-                        time.sleep(3)
-                    self.motion_grab_capsule() # 아이스크림 capsule 잡기
-                    self.motion_check_sealing() # seal 제거 여부 확인하는 장소로 이동
-                    # seal 제거 여부 확인 코드 위치 (예정)
-                    # seal 제거 안함 코드 위치 (예정)
-                    # seal 제거 확인 후 코드 진행
-                    self.motion_place_capsule() # capsule 프레스 밑에 위치시키기
-                    self.motion_grab_cup() # cup 잡기
-                    if self.topping_no == True:
-                        self.motion_topping_pass()
-                        self.motion_make_icecream()
-                    else:
-                        if self.topping_first == True:
-                            self.motion_topping()
-                            self.motion_make_icecream()
-                        else:
-                            self.motion_topping_pass()
-                            self.motion_make_icecream()
-                            self.motion_topping()
-                    self.motion_serve()
+                    # self.motion_home() # home 자세 대기
+                    # self.motion_point_jig() # capsule 위치시킬 jig 가르키기
+                    # while True:
+                    #     if not self.input_queue.empty():
+                    #         break
+                    #     print("캡슐을 "+ self.jig + " jig에 배치하고 엔터 키 입력...")
+                    #     time.sleep(3)
+                    # self.motion_grab_capsule() # 아이스크림 capsule 잡기
+                    # self.motion_check_sealing() # seal 제거 여부 확인하는 장소로 이동
+                    # # seal 제거 여부 확인 코드 위치 (예정)
+                    # # seal 제거 안함 코드 위치 (예정)
+                    # # seal 제거 확인 후 코드 진행
+                    # self.motion_place_capsule() # capsule 프레스 밑에 위치시키기
+                    # self.motion_grab_cup() # cup 잡기
+                    # if self.topping_no == True:
+                    #     self.motion_topping_pass()
+                    #     self.motion_make_icecream()
+                    # else:
+                    #     if self.topping_first == True:
+                    #         self.motion_topping()
+                    #         self.motion_make_icecream()
+                    #     else:
+                    #         self.motion_topping_pass()
+                    #         self.motion_make_icecream()
+                    #         self.motion_topping()
+                    # self.motion_serve()
                     
-                    # 다음 손님이 있는지 확인
-                    if self.order_msg_queue.empty():
-                        self.next_customer = False
-                    else:
-                        self.next_customer = True
-                    # 만약 다음 손님이 없다면.
-                        # 수저 위치 안내 및 인사
-                    if self.next_customer == False:
-                        self.motion_point_spoon()
-                        self.motion_bye()
-                    self.motion_trash_capsule() # 캡슐 껍데기 버리기
-                    self.motion_home() # home 자세 대기
+                    # # 다음 손님이 있는지 확인
+                    # if self.order_msg_queue.empty():
+                    #     self.next_customer = False
+                    # else:
+                    #     self.next_customer = True
+                    # # 만약 다음 손님이 없다면.
+                    #     # 수저 위치 안내 및 인사
+                    # if self.next_customer == False:
+                    #     self.motion_point_spoon()
+                    #     self.motion_bye()
+                    # self.motion_trash_capsule() # 캡슐 껍데기 버리기
+                    # self.motion_home() # home 자세 대기
+
+                    time.sleep(5)
+                    # 손님이 아이스크림을 수령해갔다고 가정하고 서버에 메시지 보내기
+                    try:
+                        self.clientSocket.send(('icecream_service_finish/'+self.jig).encode('utf-8'))
+                    except:
+                        print('socket error')
+
                     if self.next_customer == True:
                         self.state = 'icecream'
                     else:
