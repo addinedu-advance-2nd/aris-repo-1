@@ -40,12 +40,12 @@ class Database():
         self.PORT = 65432
         self.BUFSIZE = 1024
         self.ADDR = (self.HOST, self.PORT)
-
+        print("1")
         # 서버 소켓 설정
         self.serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.serverSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.serverSocket.settimeout(10)
-
+        print("2")
         # 연결 시도
         while True:
             try:
@@ -66,7 +66,8 @@ class Database():
                         print("socket timeout")
                         print("연결을 재시도 합니다")
                 break
-            except:
+            except Exception as e:
+                print(e)
                 pass
 
         print("--client info--")
@@ -143,10 +144,10 @@ class Database():
                         print('got unexpected msg! - 메시지의 상태가..?')
                         
             except socket.timeout:
-                self.pprint('MainException: {}'.format(socket.timeout))
+                print('MainException: {}'.format(socket.timeout))
 
             except Exception as e:
-                self.pprint('MainException: {}'.format(e))
+                print('MainException: {}'.format(e))
                 self.connected = False
                 print('connection lost')
                 # 재연결 시도
@@ -180,7 +181,7 @@ class Database():
                                 pass
                         break
                     except Exception as e:
-                        self.pprint('MainException: {}'.format(e))
+                        print('MainException: {}'.format(e))
                         print('except')
                         # pass
 
@@ -595,7 +596,7 @@ if __name__ == '__main__':
     socket_thread.start()
     print('socket_thread start')    
 
-    DB_main.socket_test()
+    
     # 서비스 스레드 동작. (수령받은 메시지에 기반하여서 계속 동작해야함.)
     #run_thread = threading.Thread(target=Database.run)
     #run_thread.start()
